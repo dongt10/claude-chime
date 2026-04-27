@@ -28,7 +28,7 @@ Features:
 Build from source:
 
 ```bash
-git clone https://github.com/<your-username>/claude-chime.git
+git clone https://github.com/dongt10/claude-chime.git
 cd claude-chime
 ./build.sh
 mv ClaudeChime.app /Applications/
