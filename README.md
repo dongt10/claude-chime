@@ -1,0 +1,121 @@
+# Claude Chime
+
+A tiny native macOS menu bar app that plays a sound when Claude Code finishes a task. Pick from any built-in macOS system sound or your own audio file — no editing JSON.
+
+![macOS](https://img.shields.io/badge/macOS-14%2B-lightgrey) ![Swift](https://img.shields.io/badge/Swift-5.10%2B-orange) ![License](https://img.shields.io/badge/license-MIT-blue)
+
+## What it does
+
+Claude Code fires a `Stop` hook every time the assistant finishes responding. Claude Chime ships a one-line `afplay` hook and a friendly UI for picking which sound it plays. Selection is stored in a plain text file (`~/.claude/notification-sound.txt`) so the hook stays portable and inspectable.
+
+Features:
+
+- Lives in the menu bar — no Dock icon, no window clutter (`LSUIElement`).
+- Browse the 14 built-in macOS system sounds, with one-click previews.
+- Hover any row for a preview button that doesn't change your selection.
+- Pick a custom `.aiff`/`.wav`/`.mp3`/`.m4a` from anywhere on disk.
+- Detects whether the Stop hook is wired up; installs/uninstalls it for you.
+- Cleanly merges into an existing `~/.claude/settings.json` — preserves any other hooks you have.
+
+## Requirements
+
+- macOS 14 (Sonoma) or newer
+- Xcode 15.3+ command line tools (`xcode-select --install`) — Swift 5.10+
+- [Claude Code](https://claude.com/claude-code) installed
+
+## Install
+
+Build from source:
+
+```bash
+git clone https://github.com/<your-username>/claude-chime.git
+cd claude-chime
+./build.sh
+mv ClaudeChime.app /Applications/
+open /Applications/ClaudeChime.app
+```
+
+The first launch may be blocked by Gatekeeper because the binary isn't notarized. Right-click the app in Finder → **Open** to bypass once, or run:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ClaudeChime.app
+```
+
+## Usage
+
+1. Click the bell icon in the menu bar.
+2. If the orange banner shows up, click **Install in ~/.claude/settings.json** — this adds the Stop hook.
+3. Click any sound to make it the current one (it auto-previews).
+4. Hover a sound and click the small play icon to preview without changing your selection.
+5. Use **Custom…** to pick any audio file outside the system library.
+
+To **disable** the chime without uninstalling the app, open the popover → `…` menu → **Uninstall Stop hook**. Reinstall the same way.
+
+## How it works
+
+On install, Claude Chime adds this entry to your `~/.claude/settings.json`:
+
+```jsonc
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(cat ~/.claude/notification-sound.txt 2>/dev/null | head -n1 | tr -d '\\r\\n '); [ -f \"$f\" ] && afplay \"$f\"",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+When Claude Code finishes a turn, it runs this hook. The hook reads the path stored in `~/.claude/notification-sound.txt` and plays it with `afplay`. If the file is missing, empty, or the path doesn't resolve, the hook silently does nothing — it never blocks Claude.
+
+The app only writes to two files:
+
+| File | Purpose |
+| --- | --- |
+| `~/.claude/notification-sound.txt` | Absolute path to the chosen sound |
+| `~/.claude/settings.json` | Stop hook entry (only on install/uninstall) |
+
+You can edit `notification-sound.txt` directly while the app is open — the popover refreshes when reopened.
+
+## Note on hook reload
+
+Claude Code's settings watcher only picks up files that existed when a session started. If you install the hook for the first time while a Claude Code session is running, open `/hooks` once or restart Claude to pick it up. Subsequent sessions detect it automatically.
+
+## Build details
+
+Pure Swift Package Manager. No third-party dependencies. The `build.sh` wrapper produces a universal (`arm64` + `x86_64`) `.app` bundle and ad-hoc-signs it. For a notarized release, plug in your Developer ID via `codesign --sign "Developer ID Application: …"` and `xcrun notarytool`.
+
+```
+claude-chime/
+├── Package.swift              # SwiftPM manifest, macOS 14+
+├── Info.plist                 # LSUIElement = true (menu bar only)
+├── build.sh                   # Builds .app bundle
+├── Sources/ClaudeChime/
+│   ├── ClaudeChimeApp.swift   # @main App + MenuBarExtra
+│   ├── MenuView.swift         # Popover UI
+│   ├── SoundManager.swift     # Sound IO + afplay preview
+│   ├── HookManager.swift      # settings.json read/merge/write
+│   └── Models.swift
+```
+
+## Contributing
+
+PRs welcome. Some open ideas:
+
+- Custom app icon / `.icns` (currently uses generic)
+- Per-event sounds (separate sound for `Notification`, `PreCompact`, etc.)
+- Volume slider
+- Launch-at-login toggle (`SMAppService`)
+- Homebrew Cask formula
+
+## License
+
+MIT — see [LICENSE](LICENSE).
