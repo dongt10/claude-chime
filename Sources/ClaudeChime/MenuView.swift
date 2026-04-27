@@ -53,6 +53,11 @@ struct MenuView: View {
         Divider()
 
         Button("Open Claude Chime Window…") {
+            // The app starts as .accessory (no Dock icon, can't be foreground)
+            // because LSUIElement=true. To make a Window scene actually show
+            // up, we need to flip to .regular before opening it; MainWindow
+            // flips back to .accessory when it closes.
+            NSApp.setActivationPolicy(.regular)
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }

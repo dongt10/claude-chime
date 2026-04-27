@@ -26,6 +26,24 @@ struct MainWindow: View {
         .onAppear {
             soundManager.loadCurrentSound()
             hookManager.checkInstallation()
+            // Belt-and-suspenders: if this window appears via a path that
+            // didn't already flip the policy (e.g. SwiftUI restoring it from
+            // a previous session), do it now so the window actually shows.
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        .onDisappear {
+            // Window closed → drop back to menu-bar-only mode (no Dock icon).
+            // Defer to the next runloop tick so SwiftUI has fully torn down
+            // the window before we read NSApp.windows.
+            DispatchQueue.main.async {
+                let mainWindowStillOpen = NSApp.windows.contains { window in
+                    window.title == "Claude Chime" && window.isVisible
+                }
+                if !mainWindowStillOpen {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
         }
     }
 }
