@@ -21,3 +21,6 @@ xcuserdata/
 # Editors
 .vscode/
 .idea/
+
+# Generated icon intermediate (use scripts/make-icon.swift to regenerate the .icns)
+**/AppIcon.iconset/
