@@ -35,11 +35,21 @@ mv ClaudeChime.app /Applications/
 open /Applications/ClaudeChime.app
 ```
 
-The first launch may be blocked by Gatekeeper because the binary isn't notarized. Right-click the app in Finder → **Open** to bypass once, or run:
+### Bypassing Gatekeeper on first launch
+
+The build script ad-hoc signs the binary but doesn't notarize it (notarization requires a paid Apple Developer ID). On macOS 15+ (Sequoia, Sonoma, Tahoe…) Gatekeeper refuses to launch ad-hoc-signed apps from Finder until you grant a one-time exception:
+
+1. Double-click `ClaudeChime.app`. You'll see *"…cannot be opened because Apple cannot check it for malicious software."* Click **Done**.
+2. Open **System Settings → Privacy & Security**, scroll to the bottom, find the line about ClaudeChime, and click **Open Anyway**. Authenticate.
+3. Confirm in the dialog. From now on, double-click works.
+
+If you'd rather skip the System Settings dance, launch it once from a terminal — `open` is more permissive than Finder for ad-hoc-signed apps:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/ClaudeChime.app
+open /Applications/ClaudeChime.app
 ```
+
+> **Note for older macOS:** the right-click → **Open** trick still works on macOS 13/14. The `xattr -dr com.apple.quarantine` workaround does *not* help on Tahoe because the blocker is `com.apple.provenance`, which the OS re-applies automatically.
 
 ## Usage
 
