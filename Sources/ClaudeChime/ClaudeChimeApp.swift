@@ -11,8 +11,19 @@ struct ClaudeChimeApp: App {
                 .environment(soundManager)
                 .environment(hookManager)
         } label: {
-            Image(systemName: "bell.fill")
+            Text("🔔")
         }
-        .menuBarExtraStyle(.window)
+        .menuBarExtraStyle(.menu)
+
+        Window("Claude Chime", id: "main") {
+            MainWindow()
+                .environment(soundManager)
+                .environment(hookManager)
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 480, height: 620)
+        .commands {
+            CommandGroup(replacing: .newItem) {}
+        }
     }
 }

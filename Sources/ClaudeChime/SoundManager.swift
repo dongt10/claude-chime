@@ -6,7 +6,24 @@ import Observation
 @MainActor
 final class SoundManager {
     static let systemSoundsDirectory = "/System/Library/Sounds"
-    private static let supportedExtensions: Set<String> = ["aiff", "wav", "mp3", "m4a", "caf", "aac"]
+
+    /// File extensions afplay (AudioToolbox) can read. Includes audio containers
+    /// and the common video containers — afplay extracts the audio track from
+    /// MP4/MOV/M4V/3GP. We accept anything in this set when listing a directory;
+    /// the file picker is even more permissive (UTType-based).
+    private static let supportedExtensions: Set<String> = [
+        "aiff", "aif", "aifc",
+        "wav", "wave",
+        "mp3",
+        "m4a", "m4b", "m4r", "m4p",
+        "mp4", "m4v", "mov", "3gp", "3gpp",
+        "aac", "adts",
+        "caf",
+        "flac",
+        "ac3",
+        "amr",
+        "au", "snd"
+    ]
 
     var currentSound: String = ""
 
@@ -112,12 +129,15 @@ final class SoundManager {
 
     func pickCustomSound() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.audio]
+        // .audio covers AIFF/WAV/MP3/M4A/AAC/CAF/FLAC/etc.
+        // .audiovisualContent additionally lets the user pick MP4/MOV/M4V/3GP —
+        // afplay can read the audio track out of those containers.
+        panel.allowedContentTypes = [.audio, .audiovisualContent]
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.title = "Choose a sound file"
-        panel.message = "Pick a sound to play when Claude finishes a task"
+        panel.title = "Choose a sound or video file"
+        panel.message = "Anything afplay can read works — most audio formats and most video files (MP4, MOV, M4V) too."
 
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {

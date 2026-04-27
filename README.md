@@ -13,7 +13,7 @@ Features:
 - Lives in the menu bar — no Dock icon, no window clutter (`LSUIElement`).
 - Browse the 14 built-in macOS system sounds, with one-click previews.
 - Hover any row for a preview button that doesn't change your selection.
-- Pick a custom `.aiff`/`.wav`/`.mp3`/`.m4a` from anywhere on disk.
+- Pick a custom file in any format `afplay` can read — see below.
 - Detects whether the Stop hook is wired up; installs/uninstalls it for you.
 - Cleanly merges into an existing `~/.claude/settings.json` — preserves any other hooks you have.
 
@@ -60,6 +60,36 @@ open /Applications/ClaudeChime.app
 5. Use **Custom…** to pick any audio file outside the system library.
 
 To **disable** the chime without uninstalling the app, open the popover → `…` menu → **Uninstall Stop hook**. Reinstall the same way.
+
+## Supported file formats
+
+Claude Chime plays your sound with macOS's `afplay`, which is built on the AudioToolbox framework. That gives broad format coverage out of the box.
+
+**Audio formats** (well supported):
+
+| Format | Extensions |
+| --- | --- |
+| AIFF | `.aiff`, `.aif`, `.aifc` |
+| WAV | `.wav`, `.wave` |
+| MP3 | `.mp3` |
+| AAC / MPEG-4 audio | `.m4a`, `.m4b`, `.m4r`, `.aac` |
+| Apple Lossless (ALAC) | `.m4a` |
+| Apple Core Audio | `.caf` |
+| FLAC | `.flac` |
+| AC-3 (Dolby Digital) | `.ac3` (limited — depends on macOS version) |
+| µ-law / A-law / IMA4 | usually inside `.aiff` or `.wav` |
+
+**Video containers** (audio track is extracted):
+
+| Format | Extensions |
+| --- | --- |
+| MPEG-4 / H.264 | `.mp4`, `.m4v` |
+| QuickTime | `.mov` |
+| 3GPP | `.3gp`, `.3gpp` |
+
+**Not supported**: Ogg Vorbis (`.ogg`), Opus (`.opus`), WMA. Convert to one of the above first if you need them.
+
+If you pick something `afplay` can't read, the hook silently does nothing — it never blocks Claude. You can verify a file works by running `afplay /path/to/your/file` from a terminal.
 
 ## How it works
 
