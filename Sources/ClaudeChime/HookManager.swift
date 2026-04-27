@@ -9,7 +9,7 @@ final class HookManager {
     var lastError: String? = nil
 
     @ObservationIgnored
-    private let settingsPath: String = ("~/.claude/settings.json" as NSString).expandingTildeInPath
+    private let settingsPath: String
 
     /// Substring used to recognize our hook in settings.json.
     @ObservationIgnored
@@ -20,7 +20,12 @@ final class HookManager {
     @ObservationIgnored
     private let hookCommand = #"f=$(cat ~/.claude/notification-sound.txt 2>/dev/null | head -n1 | tr -d '\r\n '); [ -f "$f" ] && afplay "$f""#
 
-    init() {
+    static var defaultSettingsPath: String {
+        ("~/.claude/settings.json" as NSString).expandingTildeInPath
+    }
+
+    init(settingsPath: String? = nil) {
+        self.settingsPath = settingsPath ?? Self.defaultSettingsPath
         checkInstallation()
     }
 

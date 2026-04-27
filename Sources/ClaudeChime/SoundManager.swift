@@ -11,12 +11,17 @@ final class SoundManager {
     var currentSound: String = ""
 
     @ObservationIgnored
-    private let configPath: String = ("~/.claude/notification-sound.txt" as NSString).expandingTildeInPath
+    private let configPath: String
 
     @ObservationIgnored
     private var previewProcess: Process?
 
-    init() {
+    static var defaultConfigPath: String {
+        ("~/.claude/notification-sound.txt" as NSString).expandingTildeInPath
+    }
+
+    init(configPath: String? = nil) {
+        self.configPath = configPath ?? Self.defaultConfigPath
         loadCurrentSound()
     }
 
