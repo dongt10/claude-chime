@@ -103,7 +103,7 @@ On install, Claude Chime adds this entry to your `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(cat ~/.claude/notification-sound.txt 2>/dev/null | head -n1 | tr -d '\\r\\n '); [ -f \"$f\" ] && afplay \"$f\"",
+            "command": "input=$(cat); active=$(printf '%s' \"$input\" | /usr/bin/plutil -extract stop_hook_active raw -o - - 2>/dev/null); [ \"$active\" = true ] && exit 0; f=$(head -n1 \"$HOME/.claude/notification-sound.txt\" 2>/dev/null); [ -f \"$f\" ] && /usr/bin/afplay \"$f\"",
             "async": true,
             "timeout": 30
           }
@@ -114,7 +114,7 @@ On install, Claude Chime adds this entry to your `~/.claude/settings.json`:
 }
 ```
 
-When Claude Code finishes a turn, it runs this hook. The hook reads the path stored in `~/.claude/notification-sound.txt` and plays it with `afplay`. If the file is missing, empty, or the path doesn't resolve, the hook silently does nothing — it never blocks Claude.
+When Claude Code finishes a turn, it runs this hook. The hook first skips recursive Stop events where `stop_hook_active` is true, then reads the path stored in `~/.claude/notification-sound.txt` and plays it with `afplay`. If the file is missing, empty, or the path doesn't resolve, the hook silently does nothing — it never blocks Claude.
 
 The app only writes to two files:
 

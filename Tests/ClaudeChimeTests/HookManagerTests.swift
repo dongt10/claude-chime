@@ -27,6 +27,13 @@ struct HookManagerTests {
         return try JSONSerialization.jsonObject(with: data) as! [String: Any]
     }
 
+    private func stopCommands(in json: [String: Any]) -> [String] {
+        let stop = (json["hooks"] as? [String: Any])?["Stop"] as? [[String: Any]]
+        return stop?.flatMap { entry in
+            (entry["hooks"] as? [[String: Any]])?.compactMap { $0["command"] as? String } ?? []
+        } ?? []
+    }
+
     // MARK: - Tests
 
     @Test func installCreatesEntryWhenNoSettingsFile() throws {
@@ -45,7 +52,10 @@ struct HookManagerTests {
         let inner = stop?[0]["hooks"] as? [[String: Any]]
         let command = inner?[0]["command"] as? String
         #expect(command?.contains("notification-sound.txt") == true)
-        #expect(command?.contains("afplay") == true)
+        #expect(command?.contains("/usr/bin/afplay") == true)
+        #expect(command?.contains("stop_hook_active") == true)
+        #expect(command?.contains("/usr/bin/plutil") == true)
+        #expect(command?.contains(#""$HOME/.claude/notification-sound.txt""#) == true)
     }
 
     @Test func installPreservesUnrelatedSettings() throws {
@@ -104,6 +114,35 @@ struct HookManagerTests {
         #expect(stop?.count == 1, "running install repeatedly must not duplicate the hook")
     }
 
+    @Test func installRepairsLegacyMatchingHooks() throws {
+        let path = makeTempPath()
+        try write([
+            "hooks": [
+                "Stop": [
+                    ["hooks": [
+                        ["type": "command", "command": "cat ~/.claude/notification-sound.txt | xargs afplay"],
+                        ["type": "command", "command": "echo other"]
+                    ]],
+                    ["hooks": [
+                        ["type": "command", "command": "f=$(cat ~/.claude/notification-sound.txt); afplay \"$f\""]
+                    ]]
+                ]
+            ]
+        ], to: path)
+
+        let manager = HookManager(settingsPath: path)
+        manager.install()
+
+        let json = try read(path)
+        let commands = stopCommands(in: json)
+        let chimeCommands = commands.filter { $0.contains("notification-sound.txt") }
+
+        #expect(chimeCommands.count == 1, "install should collapse legacy duplicates into one current hook")
+        #expect(chimeCommands.first?.contains("stop_hook_active") == true)
+        #expect(chimeCommands.first?.contains("/usr/bin/plutil") == true)
+        #expect(commands.contains("echo other"))
+    }
+
     @Test func uninstallRemovesHook() throws {
         let path = makeTempPath()
         let manager = HookManager(settingsPath: path)
@@ -137,6 +176,30 @@ struct HookManagerTests {
         #expect(stop?.count == 1)
         let inner = stop?[0]["hooks"] as? [[String: Any]]
         #expect(inner?[0]["command"] as? String == "echo hello")
+    }
+
+    @Test func uninstallRemovesAllMatchingHooks() throws {
+        let path = makeTempPath()
+        try write([
+            "hooks": [
+                "Stop": [
+                    ["hooks": [
+                        ["type": "command", "command": "cat ~/.claude/notification-sound.txt | xargs afplay"],
+                        ["type": "command", "command": "echo hello"]
+                    ]],
+                    ["hooks": [
+                        ["type": "command", "command": "f=$(cat ~/.claude/notification-sound.txt); afplay \"$f\""]
+                    ]]
+                ]
+            ]
+        ], to: path)
+
+        let manager = HookManager(settingsPath: path)
+        manager.uninstall()
+
+        let json = try read(path)
+        let commands = stopCommands(in: json)
+        #expect(commands == ["echo hello"])
     }
 
     @Test func uninstallIsNoopWhenNotInstalled() throws {

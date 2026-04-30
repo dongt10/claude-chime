@@ -15,10 +15,11 @@ final class HookManager {
     @ObservationIgnored
     private let hookCommandMarker = "notification-sound.txt"
 
-    /// The exact command we install. Reads the path from notification-sound.txt
-    /// and plays it with afplay. Silently no-ops if the path is missing/empty.
+    /// The exact command we install. It skips recursive Stop events, then reads
+    /// the path from notification-sound.txt and plays it with afplay.
+    /// Silently no-ops if the path is missing/empty.
     @ObservationIgnored
-    private let hookCommand = #"f=$(cat ~/.claude/notification-sound.txt 2>/dev/null | head -n1 | tr -d '\r\n '); [ -f "$f" ] && afplay "$f""#
+    private let hookCommand = #"input=$(cat); active=$(printf '%s' "$input" | /usr/bin/plutil -extract stop_hook_active raw -o - - 2>/dev/null); [ "$active" = true ] && exit 0; f=$(head -n1 "$HOME/.claude/notification-sound.txt" 2>/dev/null); [ -f "$f" ] && /usr/bin/afplay "$f""#
 
     static var defaultSettingsPath: String {
         ("~/.claude/settings.json" as NSString).expandingTildeInPath
@@ -34,22 +35,43 @@ final class HookManager {
     }
 
     func install() {
-        if locateHook() != nil {
-            checkInstallation()
-            return
-        }
-
         var json = readSettings() ?? [:]
         var hooks = (json["hooks"] as? [String: Any]) ?? [:]
         var stopHooks = (hooks["Stop"] as? [[String: Any]]) ?? []
+        let newHook = makeHook()
 
-        let newHook: [String: Any] = [
-            "type": "command",
-            "command": hookCommand,
-            "async": true,
-            "timeout": 30
-        ]
-        stopHooks.append(["hooks": [newHook]])
+        var didInstallHook = false
+        var updatedStopHooks: [[String: Any]] = []
+
+        for var entry in stopHooks {
+            guard let inner = entry["hooks"] as? [[String: Any]] else {
+                updatedStopHooks.append(entry)
+                continue
+            }
+
+            var updatedInner: [[String: Any]] = []
+            for hook in inner {
+                if isClaudeChimeHook(hook) {
+                    if !didInstallHook {
+                        updatedInner.append(newHook)
+                        didInstallHook = true
+                    }
+                } else {
+                    updatedInner.append(hook)
+                }
+            }
+
+            if !updatedInner.isEmpty {
+                entry["hooks"] = updatedInner
+                updatedStopHooks.append(entry)
+            }
+        }
+
+        if !didInstallHook {
+            updatedStopHooks.append(["hooks": [newHook]])
+        }
+
+        stopHooks = updatedStopHooks
         hooks["Stop"] = stopHooks
         json["hooks"] = hooks
 
@@ -58,7 +80,7 @@ final class HookManager {
     }
 
     func uninstall() {
-        guard let location = locateHook(),
+        guard locateHook() != nil,
               var json = readSettings(),
               var hooks = json["hooks"] as? [String: Any],
               var stopHooks = hooks["Stop"] as? [[String: Any]] else {
@@ -66,16 +88,21 @@ final class HookManager {
             return
         }
 
-        var entry = stopHooks[location.entryIndex]
-        guard var inner = entry["hooks"] as? [[String: Any]] else { return }
-        inner.remove(at: location.hookIndex)
+        var updatedStopHooks: [[String: Any]] = []
+        for var entry in stopHooks {
+            guard var inner = entry["hooks"] as? [[String: Any]] else {
+                updatedStopHooks.append(entry)
+                continue
+            }
 
-        if inner.isEmpty {
-            stopHooks.remove(at: location.entryIndex)
-        } else {
-            entry["hooks"] = inner
-            stopHooks[location.entryIndex] = entry
+            inner.removeAll(where: isClaudeChimeHook)
+
+            if !inner.isEmpty {
+                entry["hooks"] = inner
+                updatedStopHooks.append(entry)
+            }
         }
+        stopHooks = updatedStopHooks
 
         if stopHooks.isEmpty {
             hooks.removeValue(forKey: "Stop")
@@ -107,13 +134,26 @@ final class HookManager {
         for (i, entry) in stop.enumerated() {
             guard let inner = entry["hooks"] as? [[String: Any]] else { continue }
             for (j, hook) in inner.enumerated() {
-                if let command = hook["command"] as? String,
-                   command.contains(hookCommandMarker) {
+                if isClaudeChimeHook(hook) {
                     return (i, j)
                 }
             }
         }
         return nil
+    }
+
+    private func isClaudeChimeHook(_ hook: [String: Any]) -> Bool {
+        guard let command = hook["command"] as? String else { return false }
+        return command.contains(hookCommandMarker)
+    }
+
+    private func makeHook() -> [String: Any] {
+        [
+            "type": "command",
+            "command": hookCommand,
+            "async": true,
+            "timeout": 30
+        ]
     }
 
     private func readSettings() -> [String: Any]? {
