@@ -37,7 +37,7 @@ open /Applications/ClaudeChime.app
 
 ### Bypassing Gatekeeper on first launch
 
-The build script ad-hoc signs the binary but doesn't notarize it (notarization requires a paid Apple Developer ID). On macOS 15+ (Sequoia, Sonoma, Tahoe…) Gatekeeper refuses to launch ad-hoc-signed apps from Finder until you grant a one-time exception:
+The build script ad-hoc signs the binary but doesn't notarize it (notarization requires a paid Apple Developer ID). On recent macOS releases, Gatekeeper may refuse to launch ad-hoc-signed apps from Finder until you grant a one-time exception:
 
 1. Double-click `ClaudeChime.app`. You'll see *"…cannot be opened because Apple cannot check it for malicious software."* Click **Done**.
 2. Open **System Settings → Privacy & Security**, scroll to the bottom, find the line about ClaudeChime, and click **Open Anyway**. Authenticate.
